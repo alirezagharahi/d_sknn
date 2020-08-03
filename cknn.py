@@ -1,16 +1,16 @@
+"""
+References:
+Malte Ludewig and Dietmar Jannach. 2018. Evaluation of session-based recommendation algorithms.User Modeling and User-Adapted Interaction28,4-5 (2018), 331–390.
+"""
+
 from _operator import itemgetter
 from math import sqrt
-import math
 import random
 import time
 import numpy as np
 import pandas as pd
-import os
-import psutil
-import gc
-from sklearn.metrics.pairwise import cosine_similarity
-import operator
-from statistics import mean,stdev
+
+
 
 class ContextKNN:
     '''
@@ -68,8 +68,16 @@ class ContextKNN:
         
     def content_aggregator (self, content, indexes):
         '''
-        content: input from article emdeddings containing labelencoders, dataframe and embeddings
-        indexes: article ids in the session
+        Desc: Aggreage the content of articles in the session
+        
+        Input
+        --------
+        content: article embeddings
+        indexes: index of articles in the session
+
+        Output
+        --------        
+        aggregated vector
         '''
         embeddings = content[indexes]
         aggregate = np.mean(embeddings, axis=0)
@@ -84,34 +92,18 @@ class ContextKNN:
         diags_cov_var_matrix=np.cov(np.transpose(content[indexes])).diagonal()
         return diags_cov_var_matrix.sum()     
     
-    def content_Weighted_aggregator (self, content, indexes, map):
-        '''
-        content: input from article emdeddings containing labelencoders, dataframe and embeddings
-        indexes: article ids in the session
-        '''
-        weight = []
-        for item in map:
-            weight.append(map[item])
-        embeddings = content[indexes]
-        aggregate = np.average(embeddings,weights=weight, axis=0)
-        
-        return aggregate 
-        
-    
     def fit(self, train, content, items=None):
+
         '''
-        Trains the predictor.
-        
-        Parameters
+        Desc: Trains the predictor. This is a memory-based method therefore there is no explicit parameter to learn. In this method we memorize information in the sessions.
+        -------
+        Input:
+            data: training data (sessions, dataframe). It contains the transactions of the users (sessions). It has one column for user (session IDs), one for item IDs and one for the timestamp of the events (unix timestamps).
+            content: item meta-data (numpy array)
         --------
-        data: pandas.DataFrame
-            Training data. It contains the transactions of the sessions. It has one column for session IDs, one for item IDs and one for the timestamp of the events (unix timestamps).
-            It must have a header. Column names are arbitrary, but must correspond to the ones you set during the initialization of the network (session_key, item_key, time_key properties).
-        
-        content: It contains article embeddings for each article in np.array format (the index of array can be mapped with LabelEncoder for articles)
-        
-        the session article_id column should also be changed by article labelEncoder
+        Output: Mappings between sessions, items and time (dicts)    
         '''
+        
         index_session = train.columns.get_loc( self.session_key )
         index_item = train.columns.get_loc( self.item_key )
         index_time = train.columns.get_loc( self.time_key )
@@ -157,21 +149,17 @@ class ContextKNN:
 
     def predict_next( self, session_id, input_item_id, item_set, predict_for_item_ids, skip=False, type='view', timestamp=0 ):
         '''
-        Gives predicton scores for a selected set of items on how likely they be the next item in the session.
+        Desc: Gives predicton scores for a selected set of items on how likely they be the next item in the session.
                 
-        Parameters
+        Input:
         --------
-        session_id : int or string
-            The session IDs of the event.
-        input_item_id : int or string
-            The item ID of the event. Must be in the set of item IDs of the training set.
-        predict_for_item_ids : 1D array
-            IDs of items for which the network should give prediction scores. Every ID must be in the set of item IDs of the training set.
+        user_id: user_id that we want to predict the next items (int or hash)
+        input_item_id: the last item_id of the user (int) 
+        item_set: items in the user (session) history (list)
+        predict_for_item_ids: IDs of items for which the model should give scores. Every ID must be in the set of item IDs of the training set (an array)
             
-        Returns
         --------
-        out : pandas.Series
-            Prediction scores for selected items on how likely to be the next item of this session. Indexed by the item IDs.
+        Output: Prediction scores for selected items on how likely to be the next item of this session. Indexed by the item IDs (pandas.Series).
         
         '''
         
@@ -239,8 +227,6 @@ class ContextKNN:
                 # Gives some minimal MRR boost?
                 scores.update({key : (scores[key] + (self.pop_boost * item_pop))})
          
-        
-        # Create things in the format ..
         predictions = np.zeros(len(predict_for_item_ids))
         mask = np.in1d( predict_for_item_ids, list(scores.keys()) )
         
@@ -255,15 +241,14 @@ class ContextKNN:
 
     def item_pop(self, sessions):
         '''
-        Returns a dict(item,score) of the item popularity for the given list of sessions (only a set of ids)
+        Desc: Returns a dict (item,score) of the item popularity for the given list of sessions (only a set of ids)
         
-        Parameters
+        Input
         --------
-        sessions: set
+        sessions: a set of sessions (neighbor sessions)
         
-        Returns
         --------
-        out : dict            
+        Output : a dict with popularity scores           
         '''
         result = dict()
         max_pop = 0
@@ -327,25 +312,6 @@ class ContextKNN:
 
         return result
     
-    def tanimoto(self, first, second):
-        '''
-        Calculates the cosine tanimoto similarity for two sessions
-        
-        Parameters
-        --------
-        first: Id of a session
-        second: Id of a session
-        
-        Returns 
-        --------
-        out : float value           
-        '''
-        li = len(first&second)
-        la = len(first)
-        lb = len(second)
-        result = li / ( la + lb -li )
-
-        return result
     
     def binary(self, first, second):
         '''
@@ -386,72 +352,58 @@ class ContextKNN:
 
     def items_for_session(self, session):
         '''
-        Returns all items in the session
+        Desc: Returns all items in the session
         
-        Parameters
+        Input
         --------
         session: Id of a session
         
-        Returns 
+        Output
         --------
-        out : set           
+        set of items           
         '''
         return self.session_item_map.get(session);
     
     
     def sessions_for_item(self, item_id):
         '''
-        Returns all session for an item
+        Desc: Returns all items in the session
         
-        Parameters
+        Input
         --------
-        item: Id of the item session
+        session: Id of an item
         
-        Returns 
+        Output
         --------
-        out : set           
+        set of sessions         
         '''
         return self.item_session_map.get( item_id )
-    
-    def variance_for_session(self, session_id):
-        '''
-        Returns all session for an item
-        
-        Parameters
-        --------
-        item: Id of the item session
-        
-        Returns 
-        --------
-        out : set           
-        '''
-        return self.session_variance.get( session_id )
         
     def diversity_for_session(self, session_id):
         '''
-        Returns all session for an item
+        Desc: Returns diversity of a session
         
-        Parameters
+        Input
         --------
-        item: Id of the item session
+        session: Id of a session
         
-        Returns 
+        Output
         --------
-        out : set           
+        diversity of the session (float)        
         '''
         return self.session_diversity_map.get( session_id )    
     
     def diversity_of_session(self, session):
         '''
-        Returns artist diversity of a session
+        Desc: Calculate the diversity of a session
         
-        Parameters
+        Input
         --------
-        session: Id of a session
+        session: session_id
         
-        Returns 
+        Output
         --------
-        out : set           
+        diversity of the session
         '''
         session_items = list(self.items_for_session(session))
         dis = 0.0
@@ -469,15 +421,16 @@ class ContextKNN:
     
     def most_recent_sessions( self, sessions, number ):
         '''
-        Find the most recent sessions in the given set
+        Desc: Find the most recent sessions in the courpus
         
-        Parameters
+        Input
         --------
         sessions: set of session ids
+        number_of_sessions: number of session that we want to filter
         
-        Returns 
+        Output 
         --------
-        out : set           
+        set of sessions            
         '''
         sample = set()
 
@@ -489,32 +442,29 @@ class ContextKNN:
             tuples.append((session, time))
             
         tuples = sorted(tuples, key=itemgetter(1), reverse=True)
-        #print 'sorted list ', sortedList
         cnt = 0
         for element in tuples:
             cnt = cnt + 1
             if cnt > number:
                 break
             sample.add( element[0] )
-        #print 'returning sample of size ', len(sample)
+            
         return sample
         
         
     def possible_neighbor_sessions(self, session_items, input_item_id, session_id):
         '''
-        Find a set of session to later on find neighbors in.
-        A self.sample_size of 0 uses all sessions in which any item of the current session appears.
-        self.sampling can be performed with the options "recent" or "random".
-        "recent" selects the self.sample_size most recent sessions while "random" just choses randomly. 
+        Desc: Find potential neighbors. With self.sample_size of 0 it uses all sessions in which the current item of the current session appears.
         
-        Parameters
+        Input
         --------
-        sessions: set of session ids
+        Current item id
         
-        Returns 
+        Output 
         --------
-        out : set           
+        Set of potential neighbors           
         '''
+        
         
         self.relevant_sessions = self.relevant_sessions | self.sessions_for_item( input_item_id );
                
@@ -542,20 +492,20 @@ class ContextKNN:
                         
     def calc_similarity (self, content, session_items, sessions, diversity=False ):
         '''
-        Calculates the configured similarity for the items in session_items and each session in sessions.
+        Desc: Calculates the similarity for the items in current session_items and each neighbor session in sessions.
         
-        Parameters
+        Input
         --------
-        session_items: set of item ids
+        session_items: set of item ids in the current session
         sessions: list of session ids
+        dwelling_times:
+        timestamp: 
         
-        Returns 
+        Output 
         --------
-        out : list of tuple (session_id,similarity)           
+        list of tuples (session_id, vector similarity, content similarity, diversity of session_id)           
         '''
         
-        #print 'nb of sessions to test ', len(sessionsToTest), ' metric: ', self.metric
-
         neighbors = []
         cnt = 0
         #-----------------
@@ -585,17 +535,19 @@ class ContextKNN:
     #-----------------
     def find_neighbors( self, session_items, input_item_id, session_id):
         '''
-        Finds the k nearest neighbors for the given session_id and the current item input_item_id. 
+        Desc: Finds the k nearest neighbors for the given session_id and the current item input_item_id. 
         
-        Parameters
+        Input
         --------
-        session_items: set of item ids
-        input_item_id: int 
-        session_id: int
+        session_items: set of item ids for current session
+        input_item_id: the current input id in the session 
+        session_id: current session_id
+        timestamp: timestamp of session
+        enrich: decision str to diversify, hybridize or do the regular method
         
-        Returns 
+        Output 
         --------
-        out : list of tuple (session_id, similarity)           
+        list of tuples (session_id, vector similarity, content similarity, diversity of neighbor session)           
         '''
         possible_neighbors = self.possible_neighbor_sessions( session_items, input_item_id, session_id )
         possible_neighbors = self.calc_similarity(self.content, session_items, possible_neighbors , diversity=True)
@@ -607,17 +559,19 @@ class ContextKNN:
             
     def score_items(self, neighbors, current_session):
         '''
-        Compute a set of scores for all items given a set of neighbors.
+        Desc: Compute a set of scores for all items given a set of neighbors.
         
-        Parameters
+        Input
         --------
-        neighbors: set of session ids
-        current_session: items in the current sessions
+        neighbors: set of neighbor session ids
+        current_session: current session items
+        timestamp: timestamp of current session
+        enrich: decision str to diversify, hybridize or do the regular method
         
-        Returns
+        Output 
         --------
-        out : list of tuple (item, score)           
-        '''
+        list of tuple (item, score)           
+        '''          
         current_session_embedding = self.content_aggregator(self.content,list(current_session))
         
         # now we have the set of relevant items to make predictions
@@ -648,12 +602,34 @@ class ContextKNN:
         return scores
     
     def cos_sim(self,a,b):
+        '''
+        Desc: Calculate the modified (between 0 and 1) cosine similarity
+        
+        Input
+        --------
+        two vectors
+        
+        Output
+        --------
+        a float number between 0 and 1
+        '''                
         dot_product = np.dot(a, b)
         norm_a = np.linalg.norm(a)
         norm_b = np.linalg.norm(b)
         return ((dot_product / (norm_a * norm_b))+1)/2
     
     def cos_Dis_sim(self,a,b):
+        '''
+        Desc: Calculate the modified (between 0 and 1) cosine dissimilarity
+        
+        Input
+        --------
+        two vectors
+        
+        Output
+        --------
+        a float number between 0 and 1
+        '''                
         dot_product = np.dot(a, b)
         norm_a = np.linalg.norm(a)
         norm_b = np.linalg.norm(b)
