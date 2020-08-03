@@ -1,3 +1,5 @@
+# Making Session-based News Recommenders Diversity-aware
+
 This page contains support material for the paper: A Gharahighehi and C Vens. “Making Session-based News Recommenders Diversity-aware”, under review in Workshop on Online Misinformation and Harm-Aware Recommender Systems Co-located with RecSys 2020.
 
 This research is built on implementation by Malte Ludewig and Dietmar Jannach [1]. In this paper We make SKNN method, which is a session-based recommender system, diversity-aware using news article embeddings.
