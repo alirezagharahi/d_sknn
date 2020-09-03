@@ -10,6 +10,7 @@ Three datasets are used in this study:
 - Globo.com [3]
 - Roularta
 
+The SKNN_D scenario can be tested by using the "diversity" variable in "score_items" function in "cknn.py" file. The SKNN_C scenario can be tested by using "cos_Dis_sim" in the "score_items" function in "cknn.py" file.
 
 References:
 
