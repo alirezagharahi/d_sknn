@@ -582,7 +582,7 @@ class ContextKNN:
             # get the items in this session
             values.append(session[2])
             items = self.items_for_session(session[0])
-            diversity = session[2] 
+            diversity = session[2]  # diversity is related to SKNN_D option
             
             for item in items:
                 old_score = scores.get( item )                
@@ -594,7 +594,7 @@ class ContextKNN:
                 else: 
                     new_score = old_score + new_score*diversity
                     scores.update({item : new_score})
-     
+        # self.cos_Dis_sim(item_embedding,current_session_embedding) is related to SKNN_C option
         for w, v in scores.items():
              item_embedding = self.content[w,:]
              scores[w] = v * (self.cos_Dis_sim(item_embedding,current_session_embedding))  # Apply a weight for diversity          
